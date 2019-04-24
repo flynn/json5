@@ -659,7 +659,7 @@ func (d *decodeState) object(v reflect.Value) {
 		start := d.off - 1
 		op = d.scanWhile(scanContinue)
 		key := d.data[start : d.off-1]
-		if key[0] == '"' {
+		if key[0] == '"' || key[0] == '\'' {
 			var ok bool
 			key, ok = unquoteBytes(key)
 			if !ok {
@@ -839,7 +839,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted, unq
 	if ut != nil {
 		s := item
 		if !unquotedString {
-			if item[0] != '"' {
+			if item[0] != '"' && item[0] != '\'' {
 				if fromQuoted {
 					d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
 				} else {
