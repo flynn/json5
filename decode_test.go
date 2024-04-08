@@ -1359,3 +1359,13 @@ func TestDecodeSingleQuoteStringInterface(t *testing.T) {
 		t.Errorf("Unmarshal = %q; want %q", got, want)
 	}
 }
+
+func TestUnmarshalMapIntKey(t *testing.T) {
+	m := make(map[int]int)
+	if err := Unmarshal([]byte(`{"1":1}`), &m); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if m[1] != 1 {
+		t.Fatalf("Did not write value")
+	}
+}

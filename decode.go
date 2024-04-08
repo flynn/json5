@@ -622,14 +622,20 @@ func (d *decodeState) object(v reflect.Value) {
 	//   map[string]T or map[encoding.TextUnmarshaler]T
 	switch v.Kind() {
 	case reflect.Map:
-		// Map key must either have string kind or be an encoding.TextUnmarshaler.
+		// Map key must either have string kind, have an integer kind,
+		// or be an encoding.TextUnmarshaler.
 		t := v.Type()
-		if t.Key().Kind() != reflect.String &&
-			!reflect.PtrTo(t.Key()).Implements(textUnmarshalerType) {
-			d.saveError(&UnmarshalTypeError{"object", v.Type(), int64(d.off)})
-			d.off--
-			d.next() // skip over { } in input
-			return
+		switch t.Key().Kind() {
+		case reflect.String,
+			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		default:
+			if !reflect.PtrTo(t.Key()).Implements(textUnmarshalerType) {
+				d.saveError(&UnmarshalTypeError{Value: "object", Type: t, Offset: int64(d.off)})
+				d.off--
+				d.next() // skip over { } in input
+				return
+			}
 		}
 		if v.IsNil() {
 			v.Set(reflect.MakeMap(t))
@@ -745,9 +751,30 @@ func (d *decodeState) object(v reflect.Value) {
 				d.literalStore(key, kv, true, true)
 				kv = kv.Elem()
 			default:
-				panic("json: Unexpected key type") // should never occur
+				switch kt.Kind() {
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+					s := string(key)
+					n, err := strconv.ParseInt(s, 10, 64)
+					if err != nil || reflect.Zero(kt).OverflowInt(n) {
+						d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: kt, Offset: int64(start + 1)})
+						break
+					}
+					kv = reflect.ValueOf(n).Convert(kt)
+				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+					s := string(key)
+					n, err := strconv.ParseUint(s, 10, 64)
+					if err != nil || reflect.Zero(kt).OverflowUint(n) {
+						d.saveError(&UnmarshalTypeError{Value: "number " + s, Type: kt, Offset: int64(start + 1)})
+						break
+					}
+					kv = reflect.ValueOf(n).Convert(kt)
+				default:
+					panic("json: Unexpected key type") // should never occur
+				}
 			}
-			v.SetMapIndex(kv, subv)
+			if kv.IsValid() {
+				v.SetMapIndex(kv, subv)
+			}
 		}
 
 		// Next token must be , or }.
