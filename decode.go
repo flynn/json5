@@ -113,21 +113,26 @@ type UnmarshalTypeError struct {
 }
 
 func (e *UnmarshalTypeError) Error() string {
-	return "json: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
+	return fmt.Sprintf("json: %s at offset %d", e.message(), e.Offset)
+}
+
+func (e *UnmarshalTypeError) message() string {
+	return fmt.Sprintf("cannot unmarshal %s into Go value of type %s", e.Value, e.Type)
 }
 
 // An UnmarshalFieldError describes a JSON object key that
 // led to an unexported (and therefore unwritable) struct field.
 // (No longer used; kept for compatibility.)
-type UnmarshalFieldError struct {
-	Key   string
-	Type  reflect.Type
-	Field reflect.StructField
-}
-
-func (e *UnmarshalFieldError) Error() string {
-	return "json: cannot unmarshal object key " + strconv.Quote(e.Key) + " into unexported field " + e.Field.Name + " of type " + e.Type.String()
-}
+//type UnmarshalFieldError struct {
+//	Key    string
+//	Type   reflect.Type
+//	Field  reflect.StructField
+//	Offset int64 // error occurred after reading Offset bytes
+//}
+//
+//func (e *UnmarshalFieldError) Error() string {
+//	return fmt.Sprintf("json: cannot unmarshal object key %s into unexported field %s of type %s at offset %d", strconv.Quote(e.Key), e.Field.Name, e.Type, e.Offset)
+//}
 
 // An InvalidUnmarshalError describes an invalid argument passed to Unmarshal.
 // (The argument to Unmarshal must be a non-nil pointer.)

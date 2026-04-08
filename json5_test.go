@@ -2,10 +2,10 @@ package json5
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/kylelemons/godebug/pretty"
@@ -13,7 +13,7 @@ import (
 )
 
 type ErrorSpec struct {
-	At           int
+	At           int64
 	LineNumber   int
 	ColumnNumber int
 	Message      string
@@ -56,79 +56,98 @@ func TestJSON5Decode(t *testing.T) {
 		}
 
 		t.Logf("file: %s", path)
+
 		switch filepath.Ext(path) {
 		case ".json":
 			jd, err := parseJSON()
 			if err != nil {
-				t.Errorf("unexpected error from json decoder: %s", err)
+				t.Errorf("%s\nunexpected error from json decoder: %s", path, err)
 				return nil
 			}
 			j5d, err := parseJSON5()
 			if err != nil {
-				t.Errorf("unexpected error from json5 decoder: %s", err)
+				t.Errorf("%s\nunexpected error from json5 decoder: %s", path, err)
 				return nil
 			}
 			if diff := pretty.Compare(jd, j5d); diff != "" {
-				t.Errorf("data is not equal\n%s", diff)
+				t.Errorf("%s\ndata is not equal\n%s", path, diff)
 				return nil
 			}
 		case ".json5":
 			if _, err := parseJSON(); err == nil {
-				t.Errorf("expected JSON parsing to fail")
+				t.Errorf("%s\nexpected JSON parsing to fail", path)
 				return nil
 			}
 			es5d, err := parseES5()
 			if err != nil {
-				t.Errorf("unexpected error from ES5 decoder: %s", err)
+				t.Errorf("%s\nunexpected error from ES5 decoder: %s", path, err)
 				return nil
 			}
 			j5d, err := parseJSON5()
 			if err != nil {
-				t.Errorf("unexpected error from json5 decoder: %s", err)
+				t.Errorf("%s\nunexpected error from json5 decoder: %s", path, err)
 				return nil
 			}
 			if diff := pretty.Compare(j5d, es5d); diff != "" {
-				t.Errorf("data is not equal\n%s", diff)
+				t.Errorf("%s\ndata is not equal\n%s", path, diff)
 				return nil
 			}
 		case ".js":
 			if _, err := parseJSON(); err == nil {
-				t.Errorf("expected JSON parsing to fail")
+				t.Errorf("%s\nexpected JSON parsing to fail", path)
 				return nil
 			}
 			if _, err := parseES5(); err != nil {
-				t.Errorf("unexected error from ES5 decoder: %s", err)
+				t.Errorf("%s\nunexected error from ES5 decoder: %s", path, err)
 				return nil
 			}
 			if _, err := parseJSON5(); err == nil {
-				t.Errorf("expected JSON5 parsing to fail")
+				t.Errorf("%s\nexpected JSON5 parsing to fail", path)
 				return nil
 			}
 		case ".txt":
 			var expectedErr *ErrorSpec
-			specName := strings.TrimRight(path, filepath.Ext(path)) + ".errorSpec"
+			specName := path[:len(path)-4] + ".errorSpec"
 			specFile, err := os.Open(specName)
 			if err != nil && !os.IsNotExist(err) {
-				t.Errorf("error trying to open errorSpec file %s: %s", specName, err)
+				t.Errorf("%s\nerror trying to open errorSpec file %s: %s", path, specName, err)
 				return nil
 			}
 			if specFile != nil {
-				defer specFile.Close()
 				expectedErr = &ErrorSpec{}
 				if err := NewDecoder(specFile).Decode(expectedErr); err != nil {
-					t.Errorf("error decoding %s: %s", specName, err)
+					specFile.Close()
+					t.Errorf("%s\nerror decoding %s: %s", path, specName, err)
 					return nil
 				}
+				specFile.Close() // not using defer because we're in a long loop
 			}
 			_, err = parseJSON5()
 			if err == nil {
-				t.Errorf("expected JSON5 parsing to fail")
+				t.Errorf("%s\nexpected JSON5 parsing to fail", path)
+				return nil
+			}
+			//if expectedErr != nil && !matchedError(err, expectedErr) {
+			if !matchedError(err, expectedErr) {
+				t.Errorf("%s\nexpected JSON5 error %+v\nbut got: %+v", path, expectedErr, err)
 				return nil
 			}
 		}
 
 		return nil
 	})
+}
+
+func matchedError(err error, expected *ErrorSpec) bool {
+	var se *SyntaxError
+	if errors.As(err, &se) {
+		return se.msg == expected.Message && se.Offset == expected.At
+	}
+	var ute *UnmarshalTypeError
+	if errors.As(err, &ute) {
+		return ute.message() == expected.Message && ute.Offset == expected.At
+	}
+	return false
 }
 
 // The tests below this comment were found with go-fuzz
@@ -146,9 +165,9 @@ func TestQuotedQuote(t *testing.T) {
 }
 
 func TestInvalidNewline(t *testing.T) {
-	expected := "invalid character '\\n' in string literal"
+	expected := "json: invalid character '\\n' in string literal at offset 8"
 	var v interface{}
 	if err := Unmarshal([]byte("{a:'\\\r0\n'}"), &v); err == nil || err.Error() != expected {
-		t.Errorf("expected error %q, got %s", expected, err)
+		t.Errorf("expected error %q, got %q", expected, err)
 	}
 }

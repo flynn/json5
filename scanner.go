@@ -13,7 +13,10 @@ package json5
 // This file starts with two simple examples using the scanner
 // before diving into the scanner itself.
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 // checkValid verifies that data is valid JSON-encoded data.
 // scan is passed in for use by checkValid to avoid an allocation.
@@ -66,7 +69,7 @@ type SyntaxError struct {
 	Offset int64  // error occurred after reading Offset bytes
 }
 
-func (e *SyntaxError) Error() string { return e.msg }
+func (e *SyntaxError) Error() string { return fmt.Sprintf("json: %s at offset %d", e.msg, e.Offset) }
 
 // A scanner is a JSON scanning state machine.
 // Callers call scan.reset() and then pass bytes in one at a time
@@ -365,7 +368,7 @@ func stateInKeyLiteral(s *scanner, c byte) int {
 		return stateEndValue(s, c)
 	}
 	if !isValidKeyLiteralByte(c) {
-		return s.error(c, "in key literal")
+		return s.error(c, "in key literal when expecting ':' or whitespace")
 	}
 	return scanContinue
 }
@@ -426,7 +429,7 @@ func stateEndValue(s *scanner, c byte) int {
 			s.popParseState()
 			return scanEndArray
 		}
-		return s.error(c, "after array element")
+		return s.error(c, "after array element (expecting comma or ']')")
 	}
 	return s.error(c, "")
 }

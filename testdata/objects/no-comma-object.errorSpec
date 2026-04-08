@@ -1,0 +1,4 @@
+{
+    at: 24,
+    message: "invalid character '\"' after object key:value pair"
+}

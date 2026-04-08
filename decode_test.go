@@ -288,7 +288,7 @@ var unmarshalTests = []unmarshalTest{
 
 	// syntax errors
 	{in: `{"X": "foo", "Y"}`, err: &SyntaxError{"invalid character '}' after object key", 17}},
-	{in: `[1, 2, 3+]`, err: &SyntaxError{"invalid character '+' after array element", 9}},
+	{in: `[1, 2, 3+]`, err: &SyntaxError{"invalid character '+' after array element (expecting comma or ']')", 9}},
 	{in: `{"X":12x}`, err: &SyntaxError{"invalid character 'x' after object key:value pair", 8}, useNumber: true},
 
 	// raw value errors
@@ -1318,7 +1318,7 @@ func TestInvalidUnmarshal(t *testing.T) {
 			continue
 		}
 		if got := err.Error(); got != tt.want {
-			t.Errorf("Unmarshal = %q; want %q", got, tt.want)
+			t.Errorf("got %q; want %q", got, tt.want)
 		}
 	}
 }
@@ -1330,19 +1330,19 @@ var invalidUnmarshalTextTests = []struct {
 	{nil, "json: Unmarshal(nil)"},
 	{struct{}{}, "json: Unmarshal(non-pointer struct {})"},
 	{(*int)(nil), "json: Unmarshal(nil *int)"},
-	{new(net.IP), "json: cannot unmarshal string into Go value of type *net.IP"},
+	{new(net.IP), "json: cannot unmarshal string into Go value of type *net.IP at offset 3"},
 }
 
 func TestInvalidUnmarshalText(t *testing.T) {
 	buf := []byte(`123`)
-	for _, tt := range invalidUnmarshalTextTests {
+	for i, tt := range invalidUnmarshalTextTests {
 		err := Unmarshal(buf, tt.v)
 		if err == nil {
-			t.Errorf("Unmarshal expecting error, got nil")
+			t.Errorf("#%d Unmarshal expecting error, got nil", i)
 			continue
 		}
 		if got := err.Error(); got != tt.want {
-			t.Errorf("Unmarshal = %q; want %q", got, tt.want)
+			t.Errorf("#%d got %q; want %q", i, got, tt.want)
 		}
 	}
 }
@@ -1356,6 +1356,6 @@ func TestDecodeSingleQuoteStringInterface(t *testing.T) {
 	}
 	want := map[string]interface{}{"key": "value"}
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Unmarshal = %q; want %q", got, want)
+		t.Errorf("got %q; want %q", got, want)
 	}
 }

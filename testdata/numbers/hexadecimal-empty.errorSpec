@@ -1,0 +1,4 @@
+{
+    at: 3,
+    message: "invalid character '\\n' in hex number"
+}

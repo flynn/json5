@@ -1,0 +1,4 @@
+{
+    at: 7,
+    message: "invalid character ',' looking for beginning of object key"
+}

@@ -2,5 +2,5 @@
     at: 12,
     lineNumber: 2,
     columnNumber: 10,
-    message: "Expected ':' instead of '-'"
+    message: "invalid character '-' in key literal when expecting ':' or whitespace"
 }

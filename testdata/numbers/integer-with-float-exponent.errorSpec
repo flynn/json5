@@ -1,0 +1,4 @@
+{
+    at: 4,
+    message: "invalid character '.' after top-level value"
+}

@@ -2,5 +2,5 @@
     at: 16,
     lineNumber: 3,
     columnNumber: 5,
-    message: "Expected ']' instead of 'f'"
+    message: "invalid character 'f' after array element (expecting comma or ']')"
 }
